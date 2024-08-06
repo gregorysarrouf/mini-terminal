@@ -1,0 +1,2 @@
+#define MAX_INPUT_SIZE 1024
+#define MAX_TOKEN_NUMBER 50
