@@ -6,7 +6,7 @@
 #include "constants.h"
 #include "functions.c"
 
-  
+ 
 int main(int argc, char **argv) {
 
   char buffer[MAX_INPUT_SIZE];
@@ -14,33 +14,32 @@ int main(int argc, char **argv) {
 
   if (isatty(STDIN_FILENO)) 
   {
+    int handler;
+    
     while (1)
     {
       prompt();
       readInput(buffer);
+      trim(buffer);
+      handler = handleBuiltIn(buffer);
 
-      if(!isValidInput(buffer))
+      switch(handler)      
       {
-        printf("Handle Error\n");
-        continue;
+        case EXIT:
+          exit(0);
+        case CONTINUE:
+          continue;
       }
 
-      if ((strcmp(buffer, "exit")) == 0)
-        break;
-
       parseTokens(buffer, tokens);
+      executeCommand(tokens);
     }
-    
-
   } 
   else 
   {
     // Execute commands from scripts and bash files
     printf("is not atty"); 
   }
-
-
-  printf("\n");
 
   return 0;
 }
