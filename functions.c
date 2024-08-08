@@ -4,6 +4,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <dirent.h>
 #include "node.c"
 #include "functions.h"
 #include "constants.h"
@@ -154,7 +156,7 @@ void printwd()
 
 int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
-  const char *commands[] = { "exit", "clear", "pwd", "cd" };
+  const char *commands[] = { "exit", "clear", "pwd", "cd", "rm", "touch", "ls" };
   int numCommands = sizeof(commands) / sizeof(commands[0]), i;
 
   for (i = 0; i < numCommands; i++)
@@ -174,7 +176,75 @@ int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
     case 3:
       changeDirectory(tokens[1]);
       return EXIT;
+    case 4:
+      rm(tokens);
+      return EXIT;
+    case 5:
+      touch(tokens);
+      return EXIT;
+    case 6:
+      list();
+      return EXIT;
     default:
       return CONTINUE;
+  }
+}
+
+void rm(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  // Remove file
+  // Remove many files
+  // Implement options 
+}
+
+void touch(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  int i = 1;
+  int fd;
+
+  while (tokens[i][0] != '\0')
+  {
+    fd = open(tokens[i], O_CREAT | O_RDWR, 0644);
+    if (fd == -1) 
+    {
+      printf("Error\n");
+      return;
+    }
+
+    close(fd);
+    i++;
+  }
+}
+
+void list()
+{
+  const char *dirname = ".";
+  DIR *dir;
+  struct dirent *entry;
+  int column = 0;
+
+  dir = opendir(dirname);
+  if (dir == NULL)
+  {
+    printf("Error");
+    return;
+  }
+
+  while ((entry = readdir(dir)) != NULL)
+  {
+    if (column == 6)
+    {
+      printf("\n");
+      column = 0;
+    }
+    printf("%s  ", entry->d_name);
+    column++;
+  }
+  printf("\n");
+
+  if (closedir(dir) == -1)
+  {
+    printf("Error closing");
+    return;
   }
 }

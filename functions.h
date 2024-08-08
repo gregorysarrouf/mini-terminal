@@ -13,3 +13,6 @@ void executeCommand(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
 void printwd();
 int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
 void changeDirectory(char *dir);
+void rm(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
+void touch (char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
+void list();
