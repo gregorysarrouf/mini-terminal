@@ -84,6 +84,7 @@ void clearTokens(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 
 void parseTokens(char *input, char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
+  trim(input);
   clearTokens(tokens);
 
   int counter = 0; 
@@ -126,10 +127,15 @@ void executeCommand(char token[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
   if (strlen(*token) == 0) // Skip over empty space
     return;
 
-  if (strcmp(*token, "cd") == 0)
-  {
-    char *dir = *token + MAX_INPUT_SIZE;
+  if (!handleBuiltIn(token))
+    return;
 
+  printf("EXECUTED ALTERNATE COMMAND\n");
+  
+}
+
+void changeDirectory(char *dir)
+{
     if (!isValidDirectory(dir))
     {
       printf("Error: Invalid Directory\n");
@@ -137,7 +143,6 @@ void executeCommand(char token[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
     }
 
     chdir(dir);
-  }
 }
 
 void printwd()
@@ -147,22 +152,29 @@ void printwd()
   printf("%s\n", wd);
 }
 
-int handleBuiltIn(char *input)
+int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
-  if ((strcmp(input, "exit")) == 0)
-    return EXIT;
+  const char *commands[] = { "exit", "clear", "pwd", "cd" };
+  int numCommands = sizeof(commands) / sizeof(commands[0]), i;
 
-  if ((strcmp(input, "clear")) == 0)
+  for (i = 0; i < numCommands; i++)
+    if (strcmp(*tokens, commands[i]) == 0)
+      break;
+
+  switch(i)
   {
-    clearScreen();
-    return CONTINUE;
+    case 0:
+      exit(0);
+    case 1:
+      clearScreen();
+      return EXIT;
+    case 2:
+      printwd();
+      return EXIT;
+    case 3:
+      changeDirectory(tokens[1]);
+      return EXIT;
+    default:
+      return CONTINUE;
   }
-
-  if ((strcmp(input, "pwd")) == 0)
-  {
-    printwd();
-    return CONTINUE;
-  }
-
-  return EXECUTE;
 }

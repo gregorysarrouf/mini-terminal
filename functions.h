@@ -11,4 +11,5 @@ void trim(char *input);
 int isValidDirectory(char *dir);
 void executeCommand(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
 void printwd();
-int handleBuiltIn(char *buffer);
+int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE]);
+void changeDirectory(char *dir);

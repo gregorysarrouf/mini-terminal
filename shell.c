@@ -14,23 +14,10 @@ int main(int argc, char **argv) {
 
   if (isatty(STDIN_FILENO)) 
   {
-    int handler;
-    
     while (1)
     {
       prompt();
       readInput(buffer);
-      trim(buffer);
-      handler = handleBuiltIn(buffer);
-
-      switch(handler)      
-      {
-        case EXIT:
-          exit(0);
-        case CONTINUE:
-          continue;
-      }
-
       parseTokens(buffer, tokens);
       executeCommand(tokens);
     }

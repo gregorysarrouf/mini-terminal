@@ -1,5 +1,4 @@
 enum flow {
   EXIT,
-  CONTINUE,
-  EXECUTE
+  CONTINUE
 };
