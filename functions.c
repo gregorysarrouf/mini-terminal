@@ -192,9 +192,16 @@ int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 
 void rm(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
-  // Remove file
-  // Remove many files
-  // Implement options 
+  int i = 1;
+  int res;
+
+  while (tokens[i][0] != '\0')
+  {
+    res = unlink(tokens[i]);
+    if (res == -1)
+      printf("Error: cannot remove '%s': No such file or directory\n", tokens[i]);
+    i++;
+  }
 }
 
 void touch(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
@@ -207,7 +214,7 @@ void touch(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
     fd = open(tokens[i], O_CREAT | O_RDWR, 0644);
     if (fd == -1) 
     {
-      printf("Error\n");
+      printf("Error Creating File\n");
       return;
     }
 
@@ -226,7 +233,7 @@ void list()
   dir = opendir(dirname);
   if (dir == NULL)
   {
-    printf("Error");
+    printf("Error Opening Directory\n");
     return;
   }
 
@@ -244,7 +251,7 @@ void list()
 
   if (closedir(dir) == -1)
   {
-    printf("Error closing");
+    printf("Error Closing Directory\n");
     return;
   }
 }

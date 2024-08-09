@@ -6,6 +6,8 @@
 #include "constants.h"
 #include "functions.c"
 
+// Chose not to add options for commands since it would be tedious
+
  
 int main(int argc, char **argv) {
 
