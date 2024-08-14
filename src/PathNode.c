@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-struct node {
+// Not sure if I even need this
+
+struct PathNode {
   char *dir;
-  struct node *next;
+  struct PathNode *next;
 };
 
-void printList(struct node *head)
+void printList(struct PathNode *head)
 {
   while (head != NULL) 
   {
@@ -17,9 +19,9 @@ void printList(struct node *head)
 
 }
 
-void freeList(struct node *head)
+void freeList(struct PathNode *head)
 {
-  struct node *temp;
+  struct PathNode *temp;
 
   while (head != NULL)
   {

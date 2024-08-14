@@ -1,0 +1,2 @@
+Disclamer: 
+I have tried recreating logical operators' functionality and it works but the precedence between AND and OR operators is sometimes wrong. It is fixeable and I have thought of some solutions but since this is just a mini-shell and since I have already wasted a week just on this feature I decided to leave it be and work on other, more important features. 

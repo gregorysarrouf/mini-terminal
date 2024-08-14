@@ -6,24 +6,24 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include "node.c"
+#include "PathNode.c"
 #include "functions.h"
 #include "constants.h"
-#include "flow.c"
+#include "flow.h"
 
-struct node *pathHead = NULL;
+struct PathNode *pathHead = NULL;
 
-struct node* pathToList(char cwd[])
+struct PathNode* pathToList(char cwd[])
 {
-  struct node *head = NULL;
-  struct node *tail = NULL;
+  struct PathNode *head = NULL;
+  struct PathNode *tail = NULL;
 
   strtok(cwd, "/");
 
   while (cwd != NULL)
   {
     // Create new node and add directory to it
-    struct node *new_node = (struct node*) malloc(sizeof(struct node));
+    struct PathNode *new_node = (struct PathNode*) malloc(sizeof(struct PathNode));
     new_node->dir = cwd;
     new_node->next = NULL;
 
@@ -59,12 +59,6 @@ void prompt()
   pathHead = pathToList(cwd); // Save new path to global var
 }
 
-// Reads input from the user
-void readInput(char *input)
-{
-  fgets(input, MAX_INPUT_SIZE, stdin); 
-  input[strlen(input) - 1] = '\0'; // Remove newLine char from the end for strcmp
-}
 
 int getArgNum(char *input)
 {
@@ -86,7 +80,6 @@ void clearTokens(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 
 void parseTokens(char *input, char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
-  trim(input);
   clearTokens(tokens);
 
   int counter = 0; 
@@ -100,9 +93,9 @@ void parseTokens(char *input, char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
   }
 }
 
-void clearScreen()
+char* clearScreen()
 {
-  printf("\e[1;1H\e[2J"); 
+  return "\e[1;1H\e[2J";
 }
 
 void trim(char *input)
@@ -124,16 +117,13 @@ int isValidDirectory(char *dir)
   return S_ISDIR(stats.st_mode);
 }
 
-void executeCommand(char token[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+void* executeCommand(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
-  if (strlen(*token) == 0) // Skip over empty space
-    return;
-
-  if (!handleBuiltIn(token))
-    return;
-
-  printf("EXECUTED ALTERNATE COMMAND\n");
   
+
+  //if (!handleBuiltIn(tokens))
+
+  return "EXECUTING ALTERNATE COMMAND"; 
 }
 
 void changeDirectory(char *dir)
@@ -147,14 +137,13 @@ void changeDirectory(char *dir)
     chdir(dir);
 }
 
-void printwd()
+char* printwd()
 {
   char wd[1024];
-  getcwd(wd, sizeof(wd));
-  printf("%s\n", wd);
+  return getcwd(wd, sizeof(wd));
 }
 
-int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+void *handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
 {
   const char *commands[] = { "exit", "clear", "pwd", "cd", "rm", "touch", "ls" };
   int numCommands = sizeof(commands) / sizeof(commands[0]), i;
@@ -168,25 +157,22 @@ int handleBuiltIn(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
     case 0:
       exit(0);
     case 1:
-      clearScreen();
-      return EXIT;
+      return clearScreen();
     case 2:
-      printwd();
-      return EXIT;
+      return printwd();
     case 3:
-      changeDirectory(tokens[1]);
+      changeDirectory(tokens[1]); // return 0 or 1
       return EXIT;
     case 4:
-      rm(tokens);
+      rm(tokens); // return 0 or 1
       return EXIT;
     case 5:
-      touch(tokens);
+      touch(tokens); // return 0 or 1
       return EXIT;
     case 6:
-      list();
-      return EXIT;
+      return list();
     default:
-      return CONTINUE;
+      return (void *)2; // returns 2
   }
 }
 
@@ -223,35 +209,122 @@ void touch(char tokens[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
   }
 }
 
-void list()
+char* list()
 {
   const char *dirname = ".";
   DIR *dir;
   struct dirent *entry;
   int column = 0;
+  char* output = {};
+  char* dName = {};
+  char newLine = '\n';
 
   dir = opendir(dirname);
   if (dir == NULL)
-  {
-    printf("Error Opening Directory\n");
-    return;
-  }
+    return "Error Opening Directory\n";
 
   while ((entry = readdir(dir)) != NULL)
   {
     if (column == 6)
     {
-      printf("\n");
+      strcat(output, &newLine);
       column = 0;
     }
-    printf("%s  ", entry->d_name);
+    dName = entry->d_name;
+    strcat(dName, "  ");
+    strcat(output, dName);
+    
     column++;
   }
-  printf("\n");
+  strcat(output, &newLine);
 
   if (closedir(dir) == -1)
+    return "Error Closing Directory\n";
+
+  return output;
+}
+
+void getCommands(char *input, char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  clearTokens(commands);
+  trim(input);
+
+  int counter = 0; 
+  char *command = strtok(input, "|");
+
+  while (command != NULL)
   {
-    printf("Error Closing Directory\n");
-    return;
+    trim(command);
+    strcpy(commands[counter], command);
+    command = strtok(NULL, "|");
+    counter++;
   }
+
+  fixCommandSpacing(commands);
+  printCommands(commands);
+}
+
+int getNumCommands(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  int counter = 0;
+
+  while (commands[counter][0] != '\0')
+    counter++;
+
+  return counter;
+}
+
+void execSingleCommand(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  printf("Executing Single Command\n");
+}
+
+void execPipeline(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  printf("Executing Pipeline\n");
+}
+
+void printCommands(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  for (int i = 0; i < 10; i++)
+  {
+    for (int j = 0; j < 20; j++)
+    {
+      if (commands[i][j] == '\0')
+        printf(".");
+      else 
+         printf("%c", commands[i][j]);
+    }
+    printf("\n");
+  }
+}
+
+void fixCommandSpacing(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE])
+{
+  int i, j;
+
+  for (i = 0; i < MAX_TOKEN_NUMBER - 1; i++)
+  {
+    if (commands[i][0] == '\0')
+      for (j = i + 1; j < MAX_TOKEN_NUMBER; j++)
+      {
+        if (commands[j][0] != '\0')
+        {
+          switchRows(commands, i, j); // Switch rows if a command is found
+          break;
+        }
+      }
+
+    if (j == MAX_TOKEN_NUMBER) // if there are no more commands, end the loop
+      break;
+  }
+}
+
+void switchRows(char commands[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE], int row1, int row2)
+{
+  char temp[MAX_INPUT_SIZE];
+
+  strcpy(temp, commands[row2]);
+  memcpy(commands[row2], commands[row1], MAX_INPUT_SIZE);
+  strcpy(commands[row1], temp);
 }
