@@ -1,0 +1,14 @@
+char** getContent(int containsDetails, int *outputFinalSize, int *longestFileName, ...);
+void free2DArray(char **array, int end);
+char** realloc2DArray(char **output, int *outputMaxSize);
+char** malloc2DArray(int outputMaxSize);
+void applyOptions(char **content, int *contentLen, int options);
+void listDir(char **content, int contentLen, int longestFileName, int options);
+void sort2d(char **content, int contentLen, int order);
+void hideImplied(char **content, int *contentLen);
+void hideHiddenFiles(char **content, int *contentLen);
+void switchRows(char **content, int i, int j);
+int compare(const void* a, const void* b);
+int compareReverse(const void* a, const void* b);
+void listDetails(char **content, int contentLen, int longestFileName);
+void listConcise(char **content, int contentLen, int longestFileName);

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/wait.h>
 #include "./TreeNode.c"
 #include "../include/constants.h"
 
@@ -97,19 +98,90 @@ int executeUntilFailure(struct ChildNode *head)
   return output;
 }
 
-int executeWithRedirection(struct ChildNode *head)
+int getChildCount(struct ChildNode *head)
 {
+  int childCounter = 0;
   struct ChildNode *childPointer = head;
-  printf("%s ", childPointer->child->content);
-  childPointer = childPointer->next;
-  // Implement pipelines
+
   while(childPointer != NULL)
   {
-    printf("into %s ", childPointer->child->content);
     childPointer = childPointer->next;
+    childCounter++;
   }
 
-  printf("\n");
+  return childCounter;
+}
+
+void parseCommands(struct ChildNode *head, char commands[][MAX_INPUT_SIZE])
+{
+  struct ChildNode *headPtr = head;
+  int counter = 0;
+  long unsigned int len;
+
+  while (headPtr != NULL)
+  {
+    len = strlen(headPtr->child->content);
+    strcpy(commands[counter], headPtr->child->content);
+    commands[counter][len] = '\0';
+    headPtr = headPtr->next;
+    counter++;
+  }
+}
+
+int executeWithRedirection(struct ChildNode *head)
+{
+
+  int pipefd[2 * (MAX_TOKEN_NUMBER - 1)];
+  pid_t pid;
+  int i, j;
+  int numCommands = getChildCount(head);
+  char commands[numCommands][MAX_INPUT_SIZE];
+  parseCommands(head, commands);
+
+
+  for (i = 0; i < numCommands - 1; i++)
+    if (pipe(pipefd + i * 2) < 0)
+    {
+      perror("Pipe Error");
+      return FAILURE;
+    }
+
+  for (i = 0; i < numCommands; i++)
+  {
+    pid = fork();
+    int isChildProcess = pid == 0;
+
+    if (isChildProcess)
+    {
+      // Redirect input from the previous pipe if not the first command
+      if (i != 0)
+        dup2(pipefd[(i - 1) * 2], STDIN_FILENO);
+
+      // Redirect output to the next pipe if not the last command
+      if (i != numCommands - 1)
+        dup2(pipefd[i * 2 + 1], STDOUT_FILENO);
+
+      // Close all pipe file descriptors
+      for (j = 0; j < 2 * (numCommands - 1); j++)
+        close(pipefd[j]);
+
+      // execute command as process
+    }
+    else if (pid < 0)
+    {
+      perror("Fork Error");
+      return FAILURE;
+    }
+  }
+
+  // Close all pipe file descriptors in the parent
+  for (i = 0; i < 2 * (numCommands - 1); i++)
+    close(pipefd[i]);
+
+  // Wait for all child processes
+  for (i = 0; i < numCommands; i++)
+    wait(NULL);
+
   return SUCCESS;
 }
 
