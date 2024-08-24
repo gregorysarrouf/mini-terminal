@@ -4,10 +4,13 @@
 #include <string.h>
 #include <sys/wait.h>
 #include "./main-functions.c"
+#include "../include/cmdPath.h"
 
 int main(int argc, char **argv) {
 
   char buffer[MAX_INPUT_SIZE];
+  getcwd(cmdPath, sizeof(cmdPath));
+  strcat(cmdPath, "/build/");
 
   if (isatty(STDIN_FILENO)) 
   {

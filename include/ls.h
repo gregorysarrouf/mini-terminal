@@ -1,4 +1,4 @@
-char** getContent(int containsDetails, int *outputFinalSize, int *longestFileName, ...);
+char** getContent(int *outputFinalSize, int *longestFileName, int *rowsToFree);
 void free2DArray(char **array, int end);
 char** realloc2DArray(char **output, int *outputMaxSize);
 char** malloc2DArray(int outputMaxSize);
@@ -12,3 +12,4 @@ int compare(const void* a, const void* b);
 int compareReverse(const void* a, const void* b);
 void listDetails(char **content, int contentLen, int longestFileName);
 void listConcise(char **content, int contentLen, int longestFileName);
+char* intToString(char *dst, int num);

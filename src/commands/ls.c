@@ -2,14 +2,22 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <getopt.h>
 #include <stdarg.h>
-#include "../../include/ls.h"
-#include "../HashTable.c"
+#include <pwd.h>
+#include <grp.h>
+#include <time.h>
 
+#include <dirent.h>
+#include "../../include/ls.h"
+
+#define MAX_FILENAME_LENGTH 256
+#define MAX_INFO_LENGTH 1024
 #define ENTRIES_NUM 25
 
 /*READ ME
@@ -20,6 +28,8 @@
  * -l: long listing
  * -r: sort in reverse order
  *  raAl: order
+ *
+ *  !!! contains memory leak somewhere !!!
  * */
 
 
@@ -27,9 +37,8 @@ int main(int argc, char* argv[])
 {
   int contentLen = 0;
   int longestFileName = 0;
-  char **content;
-  struct Entry **details;
-  int originalLen;
+  int rowsToFree = 0;
+  char **content = getContent(&contentLen, &longestFileName, &rowsToFree);
   char option;
   int options_flag = 0;
 
@@ -52,29 +61,17 @@ int main(int argc, char* argv[])
     }
   }
 
-  int lOptionIsSet = options_flag & 1;
+  applyOptions(content, &contentLen, options_flag);
+  listDir(content, contentLen, longestFileName, options_flag);
 
-  if (lOptionIsSet)
-  {
-    details = createHT();
-    content = getContent(1, &contentLen, &longestFileName, details);
-  }
-  else 
-    content = getContent(0, &contentLen, &longestFileName);
-
-  originalLen = contentLen;
-
-  applyOptions(content, &contentLen, options_flag); // check for -aAr
-  listDir(content, contentLen, longestFileName, options_flag); // check for -l
-
-  free2DArray(content, originalLen);
-  // if (details not null) freeHT();
+  free2DArray(content, rowsToFree);
   return 0;
 }
 
-char** getContent(int containsDetails, int *outputFinalSize, int *longestFileName, ...)
+char** getContent(int *outputFinalSize, int *longestFileName, int *rowsToFree)
 {
-  const char *dirname = ".";
+  char dirname[1024];
+  getcwd(dirname, sizeof(dirname));
   DIR *dir;
   struct dirent *entry;
   int runningMax = 0;
@@ -92,19 +89,21 @@ char** getContent(int containsDetails, int *outputFinalSize, int *longestFileNam
 
   while ((entry = readdir(dir)) != NULL)
   {
+    struct stat file_stat;
+
+    if (stat(entry->d_name, &file_stat) < 0)
+      perror("stat");
+
     dName = entry->d_name;
+    if (S_ISDIR(file_stat.st_mode))
+      strcat(dName, "/");
+
     runningMax = strlen(dName) > runningMax ? strlen(dName) : runningMax;
     
     if (index == outputMaxSize)
       output = realloc2DArray(output, &outputMaxSize);
 
     strcpy(output[index], dName);
-
-    // if (details exists as an argument)
-    //   get file info (+ symlinks)
-    //   store it in a single string with | sep 
-    //   entry = createEntry(dName, info)
-    //   putEntry(table, entry)
 
     index++;
   }
@@ -117,6 +116,7 @@ char** getContent(int containsDetails, int *outputFinalSize, int *longestFileNam
 
 
   *outputFinalSize = index;
+  *rowsToFree = outputMaxSize;
   *longestFileName = runningMax;
   return output;
 }
@@ -209,28 +209,144 @@ void listDir(char **content, int contentLen, int longestFileName, int options)
   
   int l_flag = options & 1;
 
+  printf("\n");
+
   if (l_flag)
   {
     listDetails(content, contentLen, longestFileName);
+    printf("\n");
     return;
   }
 
   listConcise(content, contentLen, longestFileName);
 
+  printf("\n");
+
 }
 
 void listDetails(char **content, int contentLen, int longestFileName)
 {
+  char details[contentLen][MAX_FILENAME_LENGTH + 200];
+  char formatting[2][100] = { "", "" };
+  char linkTemp[sizeof(int)];
+  char sizeTemp[sizeof(int)];
+
+  for (int i = 0; i < contentLen; i++)
+  {
+    struct stat file_stat;
+    struct passwd *pw;
+    struct group *gr;
+    char time_str[20];
+    char *filename = content[i];
+    strcpy(details[i], "");
+
+
+    // Get file information using stat
+    if (stat(filename, &file_stat) < 0) {
+      perror("stat");
+      return;
+    }
+
+    // Print file type and permissions
+    strcat(details[i], (S_ISDIR(file_stat.st_mode)) ? "d" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IRUSR) ? "r" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IWUSR) ? "w" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IXUSR) ? "x" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IRGRP) ? "r" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IWGRP) ? "w" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IXGRP) ? "x" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IROTH) ? "r" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IWOTH) ? "w" : "-");
+    strcat(details[i], (file_stat.st_mode & S_IXOTH) ? "x" : "-");
+    strcat(details[i], "|");
+
+    int links = file_stat.st_nlink; 
+
+    strcat(details[i], intToString(linkTemp, links));
+    strcat(details[i], "|");
+    if (atoi(formatting[0]) < atoi(linkTemp));
+      strcpy(formatting[0], linkTemp);
+
+    // Print owner and group names
+    pw = getpwuid(file_stat.st_uid);
+    gr = getgrgid(file_stat.st_gid);
+
+    strcat(details[i], pw->pw_name);
+    strcat(details[i], "|");
+    strcat(details[i], gr->gr_name);
+    strcat(details[i], "|");
+
+    int size = file_stat.st_size; 
+
+    strcat(details[i], intToString(sizeTemp, size));
+    strcat(details[i], "|");
+    if (atoi(formatting[1]) < atoi(sizeTemp))
+      strcpy(formatting[1], sizeTemp);
+
+
+    strftime(time_str, sizeof(time_str), "%b %d %H:%M", localtime(&file_stat.st_mtime));
+    strcat(details[i], time_str);
+    strcat(details[i], "|");
+
+    strcat(details[i], filename);
+  }
+
+  for (int i = 0; i < contentLen; i++)
+  {
+    int counter = 0; 
+    char *token = strtok(details[i], "|");
+    char *padding = "  ";
+
+    printf("%s", padding);
+
+    while (token != NULL)
+    {
+      if ((counter == 1) && (strlen(formatting[0]) > strlen(token)))
+        for (int j = 0; j < strlen(formatting[0]) - strlen(token); j++)
+          printf(" ");
+
+      if ((counter == 4) && (strlen(formatting[1]) > strlen(token)))
+        for (int j = 0; j < strlen(formatting[1]) - strlen(token); j++)
+          printf(" ");
+
+      if (token[strlen(token) - 1] == '/')
+        token[strlen(token) - 1] = '\0';
+
+      printf("%s ", token);
+      token = strtok(NULL, "|");
+      counter++;
+    }
+    printf("\n");
+
+  }
 }
 
 void listConcise(char **content, int contentLen, int longestFileName)
 {
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);  
-  int padding = 3;
-  int colNum = w.ws_col - 2 * padding; // padding left and right
-  int wordColNum = colNum / longestFileName;
-  int counter = -1;
+  int numRows = contentLen / 2 + (contentLen % 2);
+  char *padding = "  ";
+  int i, j;
+
+  for (i = 0; i < numRows; i++)
+  {
+    int spaces = longestFileName - strlen(content[i]);
+    printf("%s", padding);
+    printf("%s", content[i]);
+
+
+    if (i != numRows - 1 || contentLen % 2 == 0)
+    {
+      for (j = 0; j < spaces; j++)
+        printf(" ");
+
+      printf("  ");
+
+      printf("%s\n", content[numRows + i]);
+    }
+  }
+  
 }
 
 void sort2d(char **content, int contentLen, int decOrder)
@@ -307,4 +423,32 @@ void switchRows(char **content, int i, int j)
   strcpy(temp, content[i]);
   strcpy(content[i], content[j]);
   strcpy(content[j], temp);
+}
+
+char* intToString(char *dst, int num)
+{
+  int i = 0;
+
+  while (num > 0)
+  {
+    dst[i++] = num % 10 + '0';
+    num /= 10;
+  } 
+
+  dst[i] = '\0';
+
+  if (strlen(dst) == 0)
+  {
+    dst[0] = '0';
+    dst[1] = '\0';
+  }
+
+  for (int j = 0, k = i - 1; j < k; j++, k--) {
+    char temp = dst[j];
+    dst[j] = dst[k];
+    dst[k] = temp;
+  }
+
+  
+    return dst;
 }

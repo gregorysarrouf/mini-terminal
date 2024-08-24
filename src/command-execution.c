@@ -7,6 +7,8 @@
 #include "./TreeNode.c"
 #include "../include/constants.h"
 
+char cmdPath[1024];
+
 // Declarations
 int executeSequentially(struct ChildNode *head);
 int executeUntilSuccess(struct ChildNode *head);
@@ -15,6 +17,7 @@ int executeWithRedirection(struct ChildNode *head);
 int executeCommand(char *command);
 void extractCommands(char **commands, struct TreeNode *parent);
 void freeCommands(char **commands, int end);
+char **tokenize(char *str, char *delim);
 
 
 char commandsHolder[MAX_TOKEN_NUMBER][MAX_INPUT_SIZE];
@@ -130,7 +133,6 @@ void parseCommands(struct ChildNode *head, char commands[][MAX_INPUT_SIZE])
 
 int executeWithRedirection(struct ChildNode *head)
 {
-
   int pipefd[2 * (MAX_TOKEN_NUMBER - 1)];
   pid_t pid;
   int i, j;
@@ -185,10 +187,88 @@ int executeWithRedirection(struct ChildNode *head)
   return SUCCESS;
 }
 
+void switchRows(char **commands, int row1, int row2)
+{
+  char temp[MAX_INPUT_SIZE];
+
+  strcpy(temp, commands[row2]);
+  memcpy(commands[row2], commands[row1], MAX_INPUT_SIZE);
+  strcpy(commands[row1], temp);
+}
+
+void fixCommandSpacing(char **commands)
+{
+  int i, j;
+
+  for (i = 0; i < MAX_TOKEN_NUMBER - 1; i++)
+  {
+    if (commands[i][0] == '\0')
+      for (j = i + 1; j < MAX_TOKEN_NUMBER; j++)
+      {
+        if (commands[j][0] != '\0')
+        {
+          switchRows(commands, i, j); // Switch rows if a command is found
+          break;
+        }
+      }
+
+    if (j == MAX_TOKEN_NUMBER) // if there are no more commands, end the loop
+      break;
+  }
+}
+
+int getTokenNum(char **tokens)
+{
+  int index = 0;
+
+  while (tokens[index][0] != '\0' && index != MAX_TOKEN_NUMBER)
+    index++;
+
+  return index;
+}
+
 int executeCommand(char *command)
 {
-  // Implement code execution
-  printf("%s\n", command);
+  char **tokens = tokenize(command, " ");
+
+  pid_t pid = fork();  // Create a child process
+
+  if (pid < 0)
+  {
+    perror("fork");
+    exit(EXIT_FAILURE);
+  } 
+  else if (pid == 0)
+  {
+    // In the child process
+    // Storing commands path in temporary variable
+    char path[1100];
+    strcpy(path, cmdPath);
+
+    fixCommandSpacing(tokens); // Removing empty spaces
+    int tokenNum = getTokenNum(tokens);
+
+    tokens[0] = strcat(path, tokens[0]); // Including the path to commands directory
+    tokens[tokenNum] = NULL;
+
+    execve(tokens[0], tokens, NULL);
+
+    // If execve returns, it must have failed
+    perror("execve");
+    return FAILURE;
+  }
+  else 
+  {
+    // In the parent process
+    int status;
+    waitpid(pid, &status, 0);  // Wait for the child process to finish
+
+    if (!WIFEXITED(status)) {
+      return FAILURE;
+    }
+  }
+
+  free(tokens);
   return SUCCESS;
 }
 
@@ -281,7 +361,7 @@ void extractCommands(char **commands, struct TreeNode *parent)
       extractCommands(tokenizedCommands, childToAdd);
     }
     else
-    {
+  {
       trim(*(commands + i));
 
       if (strcmp(*(commands + i), "") == 0)
