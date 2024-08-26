@@ -140,7 +140,7 @@ int executeWithRedirection(struct ChildNode *head)
   char commands[numCommands][MAX_INPUT_SIZE];
   parseCommands(head, commands);
 
-
+  // Create the necessary pipes
   for (i = 0; i < numCommands - 1; i++)
     if (pipe(pipefd + i * 2) < 0)
     {
@@ -151,26 +151,25 @@ int executeWithRedirection(struct ChildNode *head)
   for (i = 0; i < numCommands; i++)
   {
     pid = fork();
-    int isChildProcess = pid == 0;
-
-    if (isChildProcess)
-    {
-      // Redirect input from the previous pipe if not the first command
-      if (i != 0)
+    if (pid == 0) // Child process
+    {       
+      if (i != 0) // If not the first command, get input from previous pipe
         dup2(pipefd[(i - 1) * 2], STDIN_FILENO);
 
-      // Redirect output to the next pipe if not the last command
+      // If not the last command, output to the next pipe
       if (i != numCommands - 1)
         dup2(pipefd[i * 2 + 1], STDOUT_FILENO);
-
+      //
       // Close all pipe file descriptors
-      for (j = 0; j < 2 * (numCommands - 1); j++)
+      for (j = 0; j < 2 * (numCommands - 1); j++) {
         close(pipefd[j]);
+      }
 
-      // execute command as process
-    }
-    else if (pid < 0)
-    {
+      // Execute the command
+      executeCommand(commands[i]);
+      exit(EXIT_FAILURE); // Exit after execution, in case of execve failure
+      //
+    } else if (pid < 0) {
       perror("Fork Error");
       return FAILURE;
     }
@@ -180,7 +179,7 @@ int executeWithRedirection(struct ChildNode *head)
   for (i = 0; i < 2 * (numCommands - 1); i++)
     close(pipefd[i]);
 
-  // Wait for all child processes
+  // Wait for all child processes to finish
   for (i = 0; i < numCommands; i++)
     wait(NULL);
 
@@ -231,6 +230,9 @@ int executeCommand(char *command)
 {
   char **tokens = tokenize(command, " ");
 
+  if (strcmp(command, "exit") == 0)
+    exit(EXIT_SUCCESS);
+
   pid_t pid = fork();  // Create a child process
 
   if (pid < 0)
@@ -255,18 +257,11 @@ int executeCommand(char *command)
 
     // If execve returns, it must have failed
     perror("execve");
-    return FAILURE;
+    //return FAILURE;
+    exit(EXIT_FAILURE);
   }
   else 
-  {
-    // In the parent process
-    int status;
-    waitpid(pid, &status, 0);  // Wait for the child process to finish
-
-    if (!WIFEXITED(status)) {
-      return FAILURE;
-    }
-  }
+  wait(NULL);  // Wait for the child process to finish
 
   free(tokens);
   return SUCCESS;

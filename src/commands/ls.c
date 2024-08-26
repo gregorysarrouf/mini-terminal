@@ -22,14 +22,11 @@
 
 /*READ ME
  *
- *
  * -a: do not ignore files starting with . 
  * -A: ignore only the obvious (., ..)
  * -l: long listing
  * -r: sort in reverse order
- *  raAl: order
  *
- *  !!! contains memory leak somewhere !!!
  * */
 
 
@@ -61,6 +58,7 @@ int main(int argc, char* argv[])
     }
   }
 
+  //listDir(content, contentLen, longestFileName, options_flag);
   applyOptions(content, &contentLen, options_flag);
   listDir(content, contentLen, longestFileName, options_flag);
 
@@ -346,6 +344,8 @@ void listConcise(char **content, int contentLen, int longestFileName)
       printf("%s\n", content[numRows + i]);
     }
   }
+
+  printf("\n");
   
 }
 
@@ -384,8 +384,13 @@ void hideImplied(char **content, int *contentLen)
 
   while (++i < j)
   {
+    while ((strcmp(content[j], "./") == 0) || (strcmp(content[j], "../") == 0))
+    {
+      j--;
+      count++;
+    }
 
-    if ((strcmp(content[i], ".") == 0) || (strcmp(content[i], "..")) == 0)
+    if ((strcmp(content[i], "./") == 0) || (strcmp(content[i], "../")) == 0)
     {
       switchRows(content, i, j);
       j--;
@@ -404,14 +409,23 @@ void hideHiddenFiles(char **content, int *contentLen)
   int i = -1;
   int j = *contentLen - 1;
   int count = 0;
+  
 
   while (++i < j)
+  {
+    while (content[j][0] == '.')
+    {
+      j--;
+      *contentLen -= 1;
+    }
+
     if (content[i][0] == '.')
     {
       switchRows(content, i, j);
       j--;
       count++;
     }
+  }
 
   *contentLen -= count;
 }
