@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/wait.h>
+#include <dirent.h>
 #include "./TreeNode.c"
 #include "../include/constants.h"
 
@@ -242,18 +243,52 @@ int executeCommand(char *command)
   } 
   else if (pid == 0)
   {
+    int isBuiltIn = 0;
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(cmdPath);
+
+    if (d)
+    {
+      while ((dir = readdir(d)) != NULL)
+      {
+        if (strcmp(dir->d_name, tokens[0]) == 0)
+        {
+          isBuiltIn = 1;
+          break;
+        }
+      }
+    }
+    
     // In the child process
     // Storing commands path in temporary variable
     char path[1100];
     strcpy(path, cmdPath);
 
+    char binPath[] = "/bin/";
+    char homeEnv[1024];
+    sprintf(homeEnv, "HOME=/home/%s", getlogin());
+
+    char *envp[] = {
+            "DISPLAY=:0",
+            "PATH=/bin:/usr/bin:/sbin",
+            homeEnv,
+            NULL
+        };
+
     fixCommandSpacing(tokens); // Removing empty spaces
     int tokenNum = getTokenNum(tokens);
 
-    tokens[0] = strcat(path, tokens[0]); // Including the path to commands directory
+
+    if (isBuiltIn)
+      tokens[0] = strcat(path, tokens[0]); // Including the path to commands directory
+    else 
+      tokens[0] = strcat(binPath, tokens[0]);
+
+
     tokens[tokenNum] = NULL;
 
-    execve(tokens[0], tokens, NULL);
+    execve(tokens[0], tokens, envp);
 
     // If execve returns, it must have failed
     perror("execve");

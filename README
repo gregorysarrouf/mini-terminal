@@ -1,1 +1,20 @@
-DO NOT USE TABS
+This is a very minimal terminal emulator I built to help me understand a bit
+more about processes and how they are handled in linux. It is written purely
+in C and contains only a fraction of the available options that normal 
+terminals have:
+
+  * echo (no options available and can only be used to print, no command
+  processing with $() operator)
+
+  * ls (r, a, A and l options available)
+
+  * clear (clears the screen)
+
+  * exit (kills the process)
+
+
+I have also worked a little on shell operators and their functionality, 
+however precedence is sometimes wrong when dealing with abstract order
+of operations (meaning longer operator chaining): "&&", "||", "|", ";"
+
+IMPORTANT: DO NOT USE TABS
